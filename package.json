@@ -127,7 +127,7 @@
     "@vercel/nft": "^1.5.0",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
-    "electron": "44.2.0",
+    "electron": "44.9.3",
     "get-port-cli": "^3.0.0",
     "js-yaml": "^4.1.1",
     "knip": "^5.82.1",
@@ -141,12 +141,45 @@
     "ws": "^8.20.0"
   },
   "overrides": {
+    "@ai-sdk/provider-utils": {
+      "undici": "^6.29.1"
+    },
     "@codemirror/language": "6.12.4",
     "@codemirror/view": "6.43.6",
+    "@xmldom/xmldom@<0.8.15": "^0.8.15",
+    "ajv@8": "^8.20.0",
+    "brace-expansion@1": "^1.1.21",
+    "decode-uri-component": "^0.5.0",
+    "diff@7": "^8.0.4",
+    "joi@17": "^17.13.8",
     "lightningcss": "1.30.1",
+    "mermaid": {
+      "katex": "^0.18.2"
+    },
+    "miniflare": {
+      "undici": "^7.30.1"
+    },
+    "minimatch@5": "^5.1.9",
+    "nanoid@3": "^3.3.18",
+    "node-forge": "^1.4.0",
+    "oxfmt": {
+      "tinypool": "^2.1.2"
+    },
+    "postcss@8": "^8.5.28",
+    "qs@6": "^6.16.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-native-markdown-display": {
+      "markdown-it": "^14.3.3"
+    },
     "react-native-reanimated": "4.3.1",
-    "react-native-worklets": "0.8.3"
+    "react-native-worklets": "0.8.3",
+    "sharp@<0.35.5": "^0.35.5",
+    "shell-quote": "^1.11.0",
+    "tar@<7.5.21": "^7.5.21",
+    "tmp": "^0.2.7",
+    "ts-deepmerge": "^8.0.0",
+    "uuid@<11.1.1": "^11.1.1",
+    "yaml@2": "^2.9.1"
   }
 }
