@@ -1,5 +1,5 @@
 {
-  "repo": "teddashh/bat-cowork",
+  "repo": "TED-H-com/bat-cowork",
   "slug": "bat-cowork",
   "name": "bat-cowork",
   "mark": "BC",
@@ -27,7 +27,7 @@
       "zh": "BAT Cowork 把 Better Agent Terminal 的桌面介面接到衍生自 Paseo 的 daemon，任務規則也放在這個 daemon 裡。目前還很早期：七個工作包只通過一個，沒有任何正式版本，也不能接到正式環境的 daemon。"
     },
     "primary": {"href": "#status", "label": {"en": "See where it stands", "zh": "看目前進度"}},
-    "secondary": {"href": "https://github.com/teddashh/bat-cowork", "label": {"en": "View source", "zh": "查看原始碼"}},
+    "secondary": {"href": "https://github.com/TED-H-com/bat-cowork", "label": {"en": "View source", "zh": "查看原始碼"}},
     "notes": [
       {"en": "Not a release", "zh": "非正式版本"},
       {"en": "Derived from Paseo", "zh": "衍生自 Paseo"},
@@ -218,8 +218,8 @@
       "en": "There is nothing to install as a product. In a clone of the repo, the task rule and desktop host suites need only Node (24 was used here) and no npm install. The client boundary tests and the server-side cowork tests run under Vitest and need the Paseo workspace install (npm ci at the repo root).",
       "zh": "目前沒有可以安裝的產品。在 clone 下來的 repo 裡，任務規則與桌面主機這兩組測試只需要 Node（這裡用的是 24 版），不用 npm install。客戶端邊界測試與 server 端的協作測試跑在 Vitest 上，要先在 repo 根目錄執行 npm ci，裝好整個 Paseo workspace。"
     },
-    "primary": {"href": "https://github.com/teddashh/bat-cowork/blob/main/docs/cowork/RELEASE-GATE.md", "label": {"en": "Release gate", "zh": "發行關卡"}},
-    "secondary": {"href": "https://github.com/teddashh/bat-cowork/blob/main/BAT-COWORK.md", "label": {"en": "Project notes", "zh": "專案說明"}},
+    "primary": {"href": "https://github.com/TED-H-com/bat-cowork/blob/main/docs/cowork/RELEASE-GATE.md", "label": {"en": "Release gate", "zh": "發行關卡"}},
+    "secondary": {"href": "https://github.com/TED-H-com/bat-cowork/blob/main/BAT-COWORK.md", "label": {"en": "Project notes", "zh": "專案說明"}},
     "steps": [
       {
         "title": {"en": "Task rules: 17 tests", "zh": "任務規則：17 個測試"},
@@ -274,7 +274,7 @@
   "links": [
     {"href": "https://github.com/getpaseo/paseo", "label": {"en": "Paseo by Mohamed Boudra", "zh": "Paseo（作者 Mohamed Boudra）"}},
     {"href": "https://github.com/tony1223/better-agent-terminal", "label": {"en": "Better Agent Terminal by TonyQ", "zh": "Better Agent Terminal（作者 TonyQ）"}},
-    {"href": "https://github.com/teddashh/bat-cowork/blob/main/THIRD_PARTY_NOTICES.md", "label": {"en": "Third-party notices", "zh": "第三方聲明"}},
+    {"href": "https://github.com/TED-H-com/bat-cowork/blob/main/THIRD_PARTY_NOTICES.md", "label": {"en": "Third-party notices", "zh": "第三方聲明"}},
     {"href": "https://teddashh.github.io/bat-agent-connector/", "label": {"en": "Related: bat-agent-connector", "zh": "相關專案：bat-agent-connector"}}
   ],
   "flows": [
