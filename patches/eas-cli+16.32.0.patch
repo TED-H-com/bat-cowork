@@ -1,0 +1,24 @@
+diff --git a/node_modules/eas-cli/build/commandUtils/new/projectFiles.js b/node_modules/eas-cli/build/commandUtils/new/projectFiles.js
+--- a/node_modules/eas-cli/build/commandUtils/new/projectFiles.js
++++ b/node_modules/eas-cli/build/commandUtils/new/projectFiles.js
+@@ -10,7 +10,7 @@
+ const eas_json_1 = require("@expo/eas-json");
+ const fs_extra_1 = tslib_1.__importDefault(require("fs-extra"));
+ const path_1 = tslib_1.__importDefault(require("path"));
+-const ts_deepmerge_1 = tslib_1.__importDefault(require("ts-deepmerge"));
++const ts_deepmerge_1 = { default: require("ts-deepmerge").merge };
+ const api_1 = require("../../api");
+ const easCli_1 = require("../../utils/easCli");
+ // Android package names must start with a lowercase letter
+diff --git a/node_modules/eas-cli/build/commands/upload.js b/node_modules/eas-cli/build/commands/upload.js
+--- a/node_modules/eas-cli/build/commands/upload.js
++++ b/node_modules/eas-cli/build/commands/upload.js
+@@ -8,7 +8,7 @@
+ const fs_extra_1 = tslib_1.__importDefault(require("fs-extra"));
+ const node_stream_zip_1 = tslib_1.__importDefault(require("node-stream-zip"));
+ const path_1 = tslib_1.__importDefault(require("path"));
+-const tar_1 = tslib_1.__importDefault(require("tar"));
++const tar_1 = { default: require("tar") };
+ const uuid_1 = require("uuid");
+ const url_1 = require("../build/utils/url");
+ const EasCommand_1 = tslib_1.__importDefault(require("../commandUtils/EasCommand"));
