@@ -9,7 +9,7 @@ import path from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { experimental_createMCPClient } from "ai";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { chromium } from "playwright";
 import { runAppearanceFontSizeRegression } from "./appearance-font-size.electron.mjs";
@@ -239,7 +239,7 @@ function mcpPayload(result, command) {
 }
 
 async function callBrowserTool(client, name, args = {}) {
-  return mcpPayload(await client.callTool({ name, args }), name);
+  return mcpPayload(await client.callTool({ name, arguments: args }), name);
 }
 
 async function waitForGuestSelector(client, browserId) {
@@ -276,11 +276,12 @@ async function createCallerAgent(daemonPort) {
   const transport = new StreamableHTTPClientTransport(
     new URL(`http://127.0.0.1:${daemonPort}/mcp/agents`),
   );
-  const client = await experimental_createMCPClient({ transport });
+  const client = new Client({ name: "paseo-desktop-browser-test", version: "1.0.0" });
+  await client.connect(transport);
   try {
     const response = await client.callTool({
       name: "create_agent",
-      args: {
+      arguments: {
         relationship: { kind: "detached" },
         workspace: { kind: "existing", workspaceId: workspaceIds[0] },
         title: "Browser desktop browser E2E caller",
@@ -529,7 +530,10 @@ async function verifyHiddenBrowserScreenshots({
       browserId,
       function: "() => { document.body.style.background = 'rgb(0,255,0)'; }",
     });
-    const response = await client.callTool({ name: "browser_screenshot", args: { browserId } });
+    const response = await client.callTool({
+      name: "browser_screenshot",
+      arguments: { browserId },
+    });
     mcpPayload(response, "browser_screenshot");
     const screenshot = response.content.find((item) => item.type === "image");
     assert(screenshot, "browser_screenshot returned no image");
@@ -1128,6 +1132,10 @@ async function main() {
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
     const page = await waitForAppPage(browser, expoPort);
     const status = await waitForDesktopStatus(page);
+    // The preload bridge becomes ready before Metro finishes the initial React bundle.
+    await page
+      .getByRole("button", { name: "Settings", exact: true })
+      .waitFor({ state: "visible", timeout: timeoutMs });
 
     const checkPluginLinks = () =>
       runPluginLinksRegression({
@@ -1162,7 +1170,8 @@ async function main() {
         `http://127.0.0.1:${daemonPort}/mcp/agents?callerAgentId=${encodeURIComponent(callerAgentId)}`,
       ),
     );
-    client = await experimental_createMCPClient({ transport });
+    client = new Client({ name: "paseo-desktop-browser-test", version: "1.0.0" });
+    await client.connect(transport);
     const report = await runRegression({
       page,
       client,
@@ -1178,6 +1187,19 @@ async function main() {
       `Browser desktop browser E2E passed: WebContents ${report.originalWebContentsId} remained ${report.finalWebContentsId}; viewport, inactive capture, focus continuity, list, snapshot, click, local-page selectors passed.`,
     );
   } catch (error) {
+    const failedPage = browser
+      ?.contexts()
+      .flatMap((context) => context.pages())
+      .find((page) => page.url().startsWith(`http://localhost:${expoPort}`));
+    if (failedPage) {
+      await failedPage
+        .screenshot({ path: path.join(artifactDir, "failure.png"), timeout: 5_000 })
+        .catch(() => undefined);
+      await failedPage
+        .content()
+        .then((html) => fs.writeFileSync(path.join(artifactDir, "failure.html"), html))
+        .catch(() => undefined);
+    }
     console.error(`Browser desktop browser E2E failed. Artifacts: ${artifactDir}`);
     console.error(error);
     throw error;
