@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, expectTypeOf, test } from "vitest";
 import { z } from "zod";
 import {
   CheckoutPrStatusResponseSchema,
@@ -54,6 +54,23 @@ describe("pull request timeline message schemas", () => {
       repoOwner: "getpaseo",
       repoName: "paseo",
       requestId: "request-1",
+    });
+  });
+
+  test.each([{}, { payload: undefined }])("fills an omitted payload before parsing %j", (input) => {
+    const parsed = PullRequestTimelineResponseSchema.parse({
+      type: "pull_request_timeline_response",
+      ...input,
+    });
+    expectTypeOf(parsed.payload).not.toBeUndefined();
+    expect(parsed.payload).toEqual({
+      cwd: "",
+      prNumber: null,
+      items: [],
+      truncated: false,
+      error: null,
+      requestId: "",
+      githubFeaturesEnabled: true,
     });
   });
 

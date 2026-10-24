@@ -93,7 +93,8 @@ jobs:
         run: npx --yes lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity
 
       - name: Verify dependency signatures
-        run: npm audit signatures
+        # npm 10's bundled trust keys cannot verify recent package attestations.
+        run: npx --yes npm@11.19.1 audit signatures
 
       - name: Lint
         run: npm run lint

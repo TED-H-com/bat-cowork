@@ -244,13 +244,17 @@ const FOOTER_GEOMETRY_TOLERANCE = 0.01;
  * Settings together at the end.
  */
 export async function expectFooterIconRow(page: Page): Promise<void> {
-  const boxes = (
-    await Promise.all(
-      FOOTER_ICON_TEST_IDS.map((testID) =>
-        page.locator(`[data-testid="${testID}"]:visible`).first().boundingBox(),
-      ),
-    )
-  ).map((box) => box!);
+  // Read one layout snapshot: separate CDP calls can observe different animation frames.
+  const boxes = await page.locator('[data-testid="sidebar-footer-bottom-line"]:visible').evaluate(
+    (footer, testIDs) =>
+      testIDs.map((testID) => {
+        const icon = footer.querySelector(`[data-testid="${testID}"]`);
+        if (!icon) throw new Error(`Missing footer icon: ${testID}`);
+        const { x, y, width, height } = icon.getBoundingClientRect();
+        return { x, y, width, height };
+      }),
+    FOOTER_ICON_TEST_IDS,
+  );
   const [first] = boxes;
   for (const box of boxes) {
     expect(Math.abs(box.y + box.height / 2 - first!.y - first!.height / 2)).toBeLessThan(2);

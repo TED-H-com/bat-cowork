@@ -4,7 +4,7 @@ import path from "node:path";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { describe, expect, test } from "vitest";
-import { experimental_createMCPClient } from "ai";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import pino from "pino";
 
@@ -84,9 +84,12 @@ async function createMcpClient(url: string, authToken?: string): Promise<McpClie
     new URL(url),
     authToken ? { requestInit: { headers: { Authorization: `Bearer ${authToken}` } } } : undefined,
   );
-  const rawClient = await experimental_createMCPClient({ transport });
-  const boundCallTool: McpClient["callTool"] = Reflect.get(rawClient, "callTool").bind(rawClient);
-  return { callTool: boundCallTool, close: () => rawClient.close() };
+  const rawClient = new Client({ name: "paseo-mcp-test", version: "1.0.0" });
+  await rawClient.connect(transport);
+  return {
+    callTool: ({ name, args }) => rawClient.callTool({ name, arguments: args }),
+    close: () => rawClient.close(),
+  };
 }
 
 interface OfflineMcpDaemon {

@@ -8,6 +8,15 @@ import { join, relative } from "node:path";
 // workspace root live in their workspace's own node_modules, and patch-package resolves
 // the patch's node_modules/... paths relative to its working directory.
 const patchedPackages = [
+  // Preserve CJS callers while overrides use the patched decoder, merge, and tar APIs.
+  {
+    nodeModulesPath: "node_modules/query-string",
+    patchPrefix: "query-string+",
+  },
+  {
+    nodeModulesPath: "node_modules/eas-cli",
+    patchPrefix: "eas-cli+",
+  },
   {
     nodeModulesPath: "node_modules/react-native-markdown-display",
     patchPrefix: "react-native-markdown-display+",

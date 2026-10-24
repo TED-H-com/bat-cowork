@@ -98,12 +98,16 @@ describe("splitMarkdownBlocks", () => {
     ]);
   });
 
-  it("recognizes every destination the renderer accepts, including escaped spaces", () => {
-    expect(splitMarkdownBlocks("See [docs].\n\n[docs]: docs\\ folder/readme")).toEqual([
-      "See [docs].\n\n[docs]: docs\\ folder/readme",
-    ]);
+  it("recognizes bracketed destinations with spaces", () => {
     expect(splitMarkdownBlocks("See [docs].\n\n[docs]: <docs folder/readme> 'Title'")).toEqual([
       "See [docs].\n\n[docs]: <docs folder/readme> 'Title'",
+    ]);
+  });
+
+  it("keeps unbracketed backslash-space destinations as literal paragraphs", () => {
+    expect(splitMarkdownBlocks("See [docs].\n\n[docs]: docs\\ folder/readme")).toEqual([
+      "See [docs].",
+      "[docs]: docs\\ folder/readme",
     ]);
   });
 
