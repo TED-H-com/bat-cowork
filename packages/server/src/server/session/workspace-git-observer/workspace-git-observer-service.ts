@@ -171,16 +171,19 @@ export function createWorkspaceGitObserverService(deps: {
           clearTimeout(existingTimer);
         }
 
-        debounceTimers.set(normalizedCwd, setTimeout(() => {
-          debounceTimers.delete(normalizedCwd);
-          void emitWorkspaceUpdateForCwd(normalizedCwd).catch((error) => {
-            logger.warn(
-              { err: error, cwd: normalizedCwd },
-              "Failed to emit workspace update after git branch snapshot",
-            );
-          });
-          emitStatusUpdate(normalizedCwd, snapshot);
-        }, 100));
+        debounceTimers.set(
+          normalizedCwd,
+          setTimeout(() => {
+            debounceTimers.delete(normalizedCwd);
+            void emitWorkspaceUpdateForCwd(normalizedCwd).catch((error) => {
+              logger.warn(
+                { err: error, cwd: normalizedCwd },
+                "Failed to emit workspace update after git branch snapshot",
+              );
+            });
+            emitStatusUpdate(normalizedCwd, snapshot);
+          }, 100),
+        );
       });
     } catch (error) {
       removeForWorkspaceId(options.workspaceId);

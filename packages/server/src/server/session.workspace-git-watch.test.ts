@@ -419,6 +419,8 @@ describe("workspace git watch targets", () => {
       }),
     );
 
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
     const statusUpdates = emitted.filter(
       (message) => message.type === "checkout_status_update",
     ) as Array<{ type: "checkout_status_update"; payload: CheckoutStatusUpdatePayload }>;
@@ -634,6 +636,8 @@ describe("workspace git watch targets", () => {
         },
       }),
     );
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     const statusUpdate = emitted.find((message) => message.type === "checkout_status_update") as
       | { payload: CheckoutStatusUpdatePayload }

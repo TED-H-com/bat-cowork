@@ -4572,7 +4572,42 @@ test("open_project_request emits a workspace_update with githubRuntime once the 
   const projects = new Map<string, ReturnType<typeof createPersistedProjectRecord>>();
   const workspaces = new Map<string, ReturnType<typeof createPersistedWorkspaceRecord>>();
   const cwd = path.resolve("/tmp/github-runtime-repo");
-  const snapshot = createWorkspaceRuntimeSnapshot(cwd);
+  const snapshot = createWorkspaceRuntimeSnapshot(cwd, {
+    forge: {
+      featuresEnabled: true,
+      pullRequest: {
+        number: 123,
+        url: "https://github.com/acme/repo/pull/123",
+        title: "Test PR",
+        state: "open",
+        baseRefName: "main",
+        headRefName: "feature",
+        isMerged: false,
+        checks: [],
+        checksStatus: "success",
+        reviewDecision: "approved",
+        forgeSpecific: {
+          forge: "github",
+          mergeStateStatus: "CLEAN",
+          autoMergeRequest: null,
+          viewerCanEnableAutoMerge: true,
+          viewerCanDisableAutoMerge: false,
+          viewerCanMergeAsAdmin: false,
+          viewerCanUpdateBranch: true,
+          repository: {
+            autoMergeAllowed: true,
+            mergeCommitAllowed: true,
+            squashMergeAllowed: true,
+            rebaseMergeAllowed: false,
+            viewerDefaultMergeMethod: "SQUASH",
+          },
+          isMergeQueueEnabled: false,
+          isInMergeQueue: false,
+        },
+      },
+      error: null,
+    },
+  });
 
   let listener: ((snapshot: WorkspaceGitRuntimeSnapshot) => void) | null = null;
   const peeked = { value: null as WorkspaceGitRuntimeSnapshot | null };
@@ -4639,7 +4674,7 @@ test("open_project_request emits a workspace_update with githubRuntime once the 
   });
 
   await new Promise<void>((resolve) => setImmediate(resolve));
-  await new Promise<void>((resolve) => setImmediate(resolve));
+  await new Promise<void>((resolve) => setTimeout(resolve, 150));
 
   const updates = filterByType(emitted, "workspace_update");
   const upsertedWithGitHub = updates
