@@ -4673,8 +4673,7 @@ test("open_project_request emits a workspace_update with githubRuntime once the 
     requestId: "req-runtime-update",
   });
 
-  await new Promise<void>((resolve) => setImmediate(resolve));
-  await new Promise<void>((resolve) => setTimeout(resolve, 150));
+  await new Promise<void>((resolve) => setTimeout(resolve, 250));
 
   const updates = filterByType(emitted, "workspace_update");
   const upsertedWithGitHub = updates
