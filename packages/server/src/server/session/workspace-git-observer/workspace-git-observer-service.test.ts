@@ -45,10 +45,6 @@ function makeSnapshot(cwd: string, currentBranch: string | null): WorkspaceGitRu
   return { cwd, git: { currentBranch } } as unknown as WorkspaceGitRuntimeSnapshot;
 }
 
-function flushMicrotasks(): Promise<void> {
-  return new Promise((done) => setImmediate(done));
-}
-
 function buildHarness(opts: { emitCwdRejects?: boolean } = {}) {
   const listeners = new Map<string, WorkspaceGitListener>();
   const registerCalls: string[] = [];
@@ -220,7 +216,7 @@ describe("git snapshot listener", () => {
     const h = buildHarness();
     h.service.syncObservers([makeDescriptor({ id: "ws1", workspaceDirectory: WS1 })]);
     h.emitSnapshot(WS1, "feature");
-    await flushMicrotasks();
+    await new Promise((r) => setTimeout(r, 110)); // wait for debounce
     expect(h.branchChanges).toEqual([["ws1", null, "feature"]]);
     expect(h.emitCwdCalls).toEqual([WS1]);
     expect(h.statusCalls).toEqual([{ cwd: WS1, branch: "feature" }]);
@@ -238,8 +234,8 @@ describe("git snapshot listener", () => {
     const h = buildHarness({ emitCwdRejects: true });
     h.service.syncObservers([makeDescriptor({ id: "ws1", workspaceDirectory: WS1 })]);
     expect(() => h.emitSnapshot(WS1, "feature")).not.toThrow();
+    await new Promise((r) => setTimeout(r, 110)); // wait for debounce
     expect(h.statusCalls).toEqual([{ cwd: WS1, branch: "feature" }]);
-    await flushMicrotasks();
     expect(h.warnCalls).toHaveLength(1);
   });
 });
