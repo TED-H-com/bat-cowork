@@ -10,6 +10,7 @@ import {
   mkdirSync,
   statSync,
 } from "fs";
+import { rm } from "fs/promises";
 import { join } from "path";
 import { win32 } from "node:path";
 import { tmpdir } from "os";
@@ -257,10 +258,14 @@ describe("checkout git utilities", () => {
     __resetPullRequestStatusCacheForTests();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     __resetCheckoutShortstatCacheForTests();
     __resetPullRequestStatusCacheForTests();
-    rmSync(tempDir, { recursive: true, force: true });
+    try {
+      await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    } catch (err) {
+      console.warn(`Failed to clean up tempDir ${tempDir}: ${err}`);
+    }
   });
 
   it("throws NotGitRepoError for non-git directories", async () => {
@@ -362,7 +367,11 @@ describe("checkout git utilities", () => {
       await expect(getCheckoutStatus(nonGitDir, { logger })).resolves.toEqual({ isGit: false });
       expect(records).toEqual([]);
     } finally {
-      rmSync(nonGitDir, { recursive: true, force: true });
+      try {
+        await rm(nonGitDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch (err) {
+        console.warn(`Failed to clean up tempDir ${nonGitDir}: ${err}`);
+      }
     }
   });
 
@@ -3874,7 +3883,11 @@ describe("discardChanges", () => {
         .trim();
       expect(status).toBe("");
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      try {
+        await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch (err) {
+        console.warn(`Failed to clean up tempDir ${tempDir}: ${err}`);
+      }
     }
   });
 
@@ -3889,7 +3902,11 @@ describe("discardChanges", () => {
       expect(existsSync(join(repoDir, "renamed.txt"))).toBe(false);
       expect(execFileSync("git", ["status", "--porcelain"], { cwd: repoDir }).toString()).toBe("");
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      try {
+        await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch (err) {
+        console.warn(`Failed to clean up tempDir ${tempDir}: ${err}`);
+      }
     }
   });
 
@@ -3907,7 +3924,11 @@ describe("discardChanges", () => {
       expect(existsSync(join(repoDir, "new.txt"))).toBe(false);
       expect(execFileSync("git", ["status", "--porcelain"], { cwd: repoDir }).toString()).toBe("");
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      try {
+        await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch (err) {
+        console.warn(`Failed to clean up tempDir ${tempDir}: ${err}`);
+      }
     }
   });
 
@@ -3933,7 +3954,11 @@ describe("discardChanges", () => {
         "?? outside.txt\n",
       );
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      try {
+        await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch (err) {
+        console.warn(`Failed to clean up tempDir ${tempDir}: ${err}`);
+      }
     }
   });
 
@@ -3944,7 +3969,11 @@ describe("discardChanges", () => {
       await discardChanges(repoDir, ["file.txt"]);
       expect(readTextFile(join(repoDir, "file.txt"))).toBe("hello\n");
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      try {
+        await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch (err) {
+        console.warn(`Failed to clean up tempDir ${tempDir}: ${err}`);
+      }
     }
   });
 
@@ -3957,7 +3986,11 @@ describe("discardChanges", () => {
       expect(readTextFile(join(repoDir, "file.txt"))).toBe("hello\n");
       expect(readFileSync(join(repoDir, "other.txt"), "utf8")).toBe("keep\n");
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      try {
+        await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch (err) {
+        console.warn(`Failed to clean up tempDir ${tempDir}: ${err}`);
+      }
     }
   });
 
@@ -3978,7 +4011,11 @@ describe("discardChanges", () => {
       expect(readTextFile(join(repoDir, "foo[ab].txt"))).toBe("literal original\n");
       expect(readTextFile(join(repoDir, "fooa.txt"))).toBe("sibling changed\n");
     } finally {
-      rmSync(tempDir, { recursive: true, force: true });
+      try {
+        await rm(tempDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+      } catch (err) {
+        console.warn(`Failed to clean up tempDir ${tempDir}: ${err}`);
+      }
     }
   });
 });
