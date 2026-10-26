@@ -384,49 +384,46 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
       afterCommit?: () => void;
     },
   ): Promise<TResult> {
+    await this.load();
+    if (this.mutationsBlockedUntilRestart) {
+      throw new Error("Workspace registry mutations are blocked until daemon restart");
+    }
+
+    // Compute updates concurrently relative to the write lock
+    const staged = new Map(this.cache);
+    const result = updater(staged);
+    const recordsChanged = !mapsEqual(this.cache, staged);
+
+    // Apply changes in memory synchronously
+    if (recordsChanged) {
+      this.cache.clear();
+      for (const [id, record] of staged) this.cache.set(id, record);
+    }
+
+    if (!recordsChanged && !hooks?.forcePersist?.(result)) return result;
+
+    let releaseWrite!: () => void;
+    const nextWrite = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const previousWrite = this.writeQueue;
+    this.writeQueue = nextWrite;
+
     try {
-      await this.load();
-      if (this.mutationsBlockedUntilRestart) {
-        throw new Error("Workspace registry mutations are blocked until daemon restart");
+      await previousWrite;
+      // While we waited, other mutations may have updated the cache.
+      // We must write the absolute latest state from the shared cache to disk,
+      // not just the `staged` local state from when this mutation was computed.
+      const currentRecords = Array.from(this.cache.values());
+      await hooks?.beforeWrite?.(currentRecords);
+      if (recordsChanged) {
+        await this.writeRecords(this.filePath, currentRecords);
       }
-
-      let result!: TResult;
-      let recordsChanged = false;
-      let staged!: Map<string, TRecord>;
-      let records!: TRecord[];
-
-      let releaseWrite!: () => void;
-      const nextWrite = new Promise<void>((resolve) => {
-        releaseWrite = resolve;
-      });
-      const previousWrite = this.writeQueue;
-      this.writeQueue = nextWrite;
-
-      try {
-        await previousWrite;
-        // Lock acquired, now we can safely clone the cache and compute updates
-        staged = new Map(this.cache);
-        result = updater(staged);
-        recordsChanged = !mapsEqual(this.cache, staged);
-        if (!recordsChanged && !hooks?.forcePersist?.(result)) return result;
-
-        records = Array.from(staged.values());
-        await hooks?.beforeWrite?.(records);
-        if (recordsChanged) {
-          await this.writeRecords(this.filePath, records);
-        }
-        await hooks?.afterWrite?.();
-        if (recordsChanged) {
-          this.cache.clear();
-          for (const [id, record] of staged) this.cache.set(id, record);
-        }
-        hooks?.afterCommit?.();
-        return result;
-      } finally {
-        releaseWrite();
-      }
+      await hooks?.afterWrite?.();
+      hooks?.afterCommit?.();
+      return result;
     } finally {
-      // The release for this is handled outside of performMutation
+      releaseWrite();
     }
   }
 

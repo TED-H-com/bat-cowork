@@ -230,6 +230,20 @@ describe("git snapshot listener", () => {
     expect(h.branchChanges).toEqual([["ws1", null, "feature"]]);
   });
 
+  test("debounces rapid snapshot updates and only emits the last snapshot", async () => {
+    const h = buildHarness();
+    h.service.syncObservers([makeDescriptor({ id: "ws1", workspaceDirectory: WS1 })]);
+    h.emitSnapshot(WS1, "feature");
+    h.emitSnapshot(WS1, "feature2");
+    h.emitSnapshot(WS1, "feature3");
+
+    // We expect the branch to transition to "feature" (since it processes sync)
+    // then "feature2" then "feature3", but the emit calls are debounced.
+    await new Promise((r) => setTimeout(r, 150));
+    expect(h.emitCwdCalls).toEqual([WS1]);
+    expect(h.statusCalls).toEqual([{ cwd: WS1, branch: "feature3" }]);
+  });
+
   test("logs and swallows an emit failure without skipping the status update", async () => {
     const h = buildHarness({ emitCwdRejects: true });
     h.service.syncObservers([makeDescriptor({ id: "ws1", workspaceDirectory: WS1 })]);
@@ -336,5 +350,20 @@ describe("teardown", () => {
     const descriptor = makeDescriptor({ id: "ws1", workspaceDirectory: WS1, name: "main" });
     h.service.recordDescriptorState("ws1", descriptor);
     expect(h.branchChanges).toEqual([]);
+  });
+
+  test("clears timers on removeForWorkspaceId and dispose", async () => {
+    const h = buildHarness();
+    h.service.syncObservers([makeDescriptor({ id: "ws1", workspaceDirectory: WS1 })]);
+    h.emitSnapshot(WS1, "feature");
+    h.service.removeForWorkspaceId("ws1");
+    await new Promise((r) => setTimeout(r, 150));
+    expect(h.emitCwdCalls).toEqual([]); // Timer was cleared
+
+    h.service.syncObservers([makeDescriptor({ id: "ws2", workspaceDirectory: WS1 })]);
+    h.emitSnapshot(WS1, "feature2");
+    h.service.dispose();
+    await new Promise((r) => setTimeout(r, 150));
+    expect(h.emitCwdCalls).toEqual([]); // Timer was cleared
   });
 });
