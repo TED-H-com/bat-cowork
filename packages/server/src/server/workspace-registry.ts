@@ -375,6 +375,7 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
     }
   }
 
+  // eslint-disable-next-line complexity
   private async performMutation<TResult>(
     updater: (records: Map<string, TRecord>) => TResult,
     hooks?: {
@@ -389,15 +390,35 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
       throw new Error("Workspace registry mutations are blocked until daemon restart");
     }
 
-    // Compute updates concurrently relative to the write lock
+    // Capture initial state to allow fine-grained cache updates and rollback
+    const originalRecords = new Map(this.cache);
     const staged = new Map(this.cache);
     const result = updater(staged);
-    const recordsChanged = !mapsEqual(this.cache, staged);
 
-    // Apply changes in memory synchronously
+    const changedIds = new Set<string>();
+    let recordsChanged = false;
+    for (const [id, record] of staged) {
+      if (record !== originalRecords.get(id)) {
+        changedIds.add(id);
+        recordsChanged = true;
+      }
+    }
+    for (const id of originalRecords.keys()) {
+      if (!staged.has(id)) {
+        changedIds.add(id);
+        recordsChanged = true;
+      }
+    }
+
+    // Apply changes in memory synchronously (so concurrent calls don't overwrite each other)
     if (recordsChanged) {
-      this.cache.clear();
-      for (const [id, record] of staged) this.cache.set(id, record);
+      for (const id of changedIds) {
+        if (staged.has(id)) {
+          this.cache.set(id, staged.get(id)!);
+        } else {
+          this.cache.delete(id);
+        }
+      }
     }
 
     if (!recordsChanged && !hooks?.forcePersist?.(result)) return result;
@@ -411,15 +432,25 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
 
     try {
       await previousWrite;
-      // While we waited, other mutations may have updated the cache.
-      // We must write the absolute latest state from the shared cache to disk,
-      // not just the `staged` local state from when this mutation was computed.
+
       const currentRecords = Array.from(this.cache.values());
-      await hooks?.beforeWrite?.(currentRecords);
-      if (recordsChanged) {
-        await this.writeRecords(this.filePath, currentRecords);
+      try {
+        await hooks?.beforeWrite?.(currentRecords);
+        if (recordsChanged) {
+          await this.writeRecords(this.filePath, currentRecords);
+        }
+        await hooks?.afterWrite?.();
+      } catch (error) {
+        // Revert cache state ONLY for records that failed and haven't been subsequently modified
+        // eslint-disable-next-line max-depth
+        if (recordsChanged) {
+          for (const id of changedIds) {
+            this.revertRecordCache(id, originalRecords, staged);
+          }
+        }
+        throw error;
       }
-      await hooks?.afterWrite?.();
+
       hooks?.afterCommit?.();
       return result;
     } finally {
@@ -427,17 +458,26 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
     }
   }
 
+  private revertRecordCache(
+    id: string,
+    originalRecords: Map<string, TRecord>,
+    staged: Map<string, TRecord>,
+  ): void {
+    const currentCacheRecord = this.cache.get(id);
+    const stagedRecord = staged.get(id);
+    if (currentCacheRecord === stagedRecord) {
+      const original = originalRecords.get(id);
+      if (original === undefined) {
+        this.cache.delete(id);
+      } else {
+        this.cache.set(id, original);
+      }
+    }
+  }
+
   protected freezeMutationsUntilRestart(): void {
     this.mutationsBlockedUntilRestart = true;
   }
-}
-
-function mapsEqual<TKey, TValue>(left: Map<TKey, TValue>, right: Map<TKey, TValue>): boolean {
-  if (left.size !== right.size) return false;
-  for (const [key, value] of left) {
-    if (right.get(key) !== value) return false;
-  }
-  return true;
 }
 
 export class FileBackedProjectRegistry
