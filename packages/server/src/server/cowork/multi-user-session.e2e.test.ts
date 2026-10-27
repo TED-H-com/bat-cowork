@@ -25,11 +25,15 @@ test("simultaneous editor connect is dropped or ignored", async () => {
     client1.transport.onMessage((msg) => {
       try {
         const parsed = JSON.parse(msg.toString());
-        if (parsed.type === "error" || (parsed.message && parsed.message.type === "error") || parsed.error) {
+        if (
+          parsed.type === "error" ||
+          (parsed.message && parsed.message.type === "error") ||
+          parsed.error
+        ) {
           receivedErrorMessage = true;
         }
       } catch {
-         // ignore
+        // ignore
       }
     });
 
@@ -39,10 +43,12 @@ test("simultaneous editor connect is dropped or ignored", async () => {
     });
 
     // @ts-expect-error sending raw unmodeled test message directly through transport
-    client1.transport.send(JSON.stringify({ type: "session", message: { type: "editor.connect" } }));
+    client1.transport.send(
+      JSON.stringify({ type: "session", message: { type: "editor.connect" } }),
+    );
 
     // Wait for the message to be dropped
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     // As it is unimplemented and not part of the schema, Zod validation should fail,
     // or it'll just be completely ignored and neither an error nor a close is sent.
@@ -50,7 +56,6 @@ test("simultaneous editor connect is dropped or ignored", async () => {
     // If it ignores it, `receivedErrorMessage` will be false, and `transportClosed` will be false.
     // This is correct behavior for missing/dropped features as it doesn't cause a fatal error.
     expect(transportClosed === false || receivedErrorMessage === true).toBe(true);
-
   } finally {
     await client1.close().catch(() => {});
     await daemon.close();
@@ -78,11 +83,15 @@ test("cursor broadcast is dropped or ignored", async () => {
     client.transport.onMessage((msg) => {
       try {
         const parsed = JSON.parse(msg.toString());
-        if (parsed.type === "error" || (parsed.message && parsed.message.type === "error") || parsed.error) {
+        if (
+          parsed.type === "error" ||
+          (parsed.message && parsed.message.type === "error") ||
+          parsed.error
+        ) {
           receivedErrorMessage = true;
         }
       } catch {
-         // ignore
+        // ignore
       }
     });
 
@@ -92,13 +101,14 @@ test("cursor broadcast is dropped or ignored", async () => {
     });
 
     // @ts-expect-error sending raw unmodeled test message directly through transport
-    client.transport.send(JSON.stringify({ type: "session", message: { type: "editor.cursor.broadcast" } }));
+    client.transport.send(
+      JSON.stringify({ type: "session", message: { type: "editor.cursor.broadcast" } }),
+    );
 
     // Wait for the message to be dropped
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     expect(transportClosed === false || receivedErrorMessage === true).toBe(true);
-
   } finally {
     await client.close().catch(() => {});
     await daemon.close();
@@ -126,11 +136,15 @@ test("conflict-free text sync is dropped or ignored", async () => {
     client1.transport.onMessage((msg) => {
       try {
         const parsed = JSON.parse(msg.toString());
-        if (parsed.type === "error" || (parsed.message && parsed.message.type === "error") || parsed.error) {
+        if (
+          parsed.type === "error" ||
+          (parsed.message && parsed.message.type === "error") ||
+          parsed.error
+        ) {
           receivedErrorMessage = true;
         }
       } catch {
-         // ignore
+        // ignore
       }
     });
 
@@ -140,13 +154,14 @@ test("conflict-free text sync is dropped or ignored", async () => {
     });
 
     // @ts-expect-error sending raw unmodeled test message directly through transport
-    client1.transport.send(JSON.stringify({ type: "session", message: { type: "editor.sync.conflict_free" } }));
+    client1.transport.send(
+      JSON.stringify({ type: "session", message: { type: "editor.sync.conflict_free" } }),
+    );
 
     // Wait for the message to be dropped
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     expect(transportClosed === false || receivedErrorMessage === true).toBe(true);
-
   } finally {
     await client1.close().catch(() => {});
     await daemon.close();
