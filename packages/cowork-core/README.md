@@ -5,20 +5,25 @@ Pure in-memory task reducer and cowork rules. This package implements the task s
 ## Core Modules
 
 ### `task-core.ts`
+
 Implements the task state machine and reducer. Tasks move through phases (`active`, `paused`, `verified`, etc.) based on events like instructions, control actions (pause, takeover, release), and verifier results.
 
 ### `dispatch-policy.ts`
+
 Defines the `evaluateDispatch` pure function which decides if an actor is allowed to execute a specific write operation (like a terminal command or a git commit) based on the current task state, revision, and epoch.
 
 ### `session-ingress.ts`
+
 Inventories the inbound messages that Paseo accepts from a client session and gates them for BAT-Cowork. Standard mutations are held or rejected unless authorized by the task state.
 
 ### `providers.ts`
+
 Tracks the admission status of agent providers like Claude, Codex, and Grok against the locked baseline.
 
 ## API Reference
 
 ### `createTask(params)`
+
 Creates a new task starting in the `active` phase.
 
 ```ts
@@ -33,6 +38,7 @@ const task = createTask({
 ```
 
 ### `step(state, event)`
+
 Transitions the task state based on a new event. Returns the next state and any emitted intents (e.g. `dispatch`, `repair`).
 
 ```ts
@@ -51,6 +57,7 @@ const result = step(task, {
 ```
 
 ### `evaluateDispatch(input)`
+
 Checks if a dispatch action is permitted.
 
 ```ts
@@ -75,9 +82,11 @@ if (!decision.allow) {
 ```
 
 ### `assertIngressGated(type)`
+
 Throws an error if a stock Paseo command is not authorized as a cowork command. Used by the server to refuse unmanaged requests.
 
 ### `assertProviderAdmitted(id)`
+
 Throws an error if the specified provider (e.g., `'claude'`) is not admitted for dispatch in the current baseline.
 
 ## Testing
