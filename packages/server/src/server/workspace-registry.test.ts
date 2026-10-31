@@ -538,4 +538,61 @@ describe("workspace registries", () => {
       pinnedAt: "2026-03-03T00:00:00.000Z",
     });
   });
+
+  test("serializes concurrent updates to different workspace IDs without losing any", async () => {
+    await workspaceRegistry.initialize();
+
+    const initial1 = createPersistedWorkspaceRecord({
+      workspaceId: "ws-1",
+      projectId: "proj-1",
+      cwd: "/tmp/repo1",
+      kind: "local_checkout",
+      displayName: "main",
+      createdAt: "2026-03-01T00:00:00.000Z",
+      updatedAt: "2026-03-01T00:00:00.000Z",
+    });
+
+    const initial2 = createPersistedWorkspaceRecord({
+      workspaceId: "ws-2",
+      projectId: "proj-1",
+      cwd: "/tmp/repo2",
+      kind: "local_checkout",
+      displayName: "main",
+      createdAt: "2026-03-01T00:00:00.000Z",
+      updatedAt: "2026-03-01T00:00:00.000Z",
+    });
+
+    const initial3 = createPersistedWorkspaceRecord({
+      workspaceId: "ws-3",
+      projectId: "proj-1",
+      cwd: "/tmp/repo3",
+      kind: "local_checkout",
+      displayName: "main",
+      createdAt: "2026-03-01T00:00:00.000Z",
+      updatedAt: "2026-03-01T00:00:00.000Z",
+    });
+
+    await workspaceRegistry.upsert(initial3);
+
+    await Promise.all([
+      workspaceRegistry.upsert(initial1),
+      workspaceRegistry.upsert(initial2),
+      workspaceRegistry.update("ws-3", (record) => ({
+        ...record,
+        title: "Updated",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      })),
+      workspaceRegistry.remove("ws-3"),
+    ]);
+
+    const reloadedRegistry = new FileBackedWorkspaceRegistry(
+      path.join(tmpDir, "projects", "workspaces.json"),
+      logger,
+    );
+    await reloadedRegistry.initialize();
+
+    expect(await reloadedRegistry.get("ws-1")).toMatchObject({ workspaceId: "ws-1" });
+    expect(await reloadedRegistry.get("ws-2")).toMatchObject({ workspaceId: "ws-2" });
+    expect(await reloadedRegistry.get("ws-3")).toBeNull();
+  });
 });
