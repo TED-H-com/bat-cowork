@@ -20,14 +20,8 @@ above that commit. Do not merge the BAT host back in.
 
 ## Status
 
-W0 is the only accepted package. W3 has local evidence. W1, W2, W4, W5, and W6 are not accepted. See `docs/cowork/RELEASE-GATE.md`.
+W0 is the only accepted package. W3 has local evidence. W1, W2, W4, W5, and W6 are not accepted.
 
-This round proved, on a local test daemon:
-
-- W1: a second client still sees the session, the file, and the diff after the first client closes. Tauri still does not compile.
-- W2: two clients see the same agent, its permission request, and its reply. The same message id does not start a second turn. A worktree created by the daemon receives the commit. The main checkout does not move. Codex is not admitted.
-- W4: two worktrees, a viewer cannot pause or instruct, and takeover holds send until the writer settles. Grok is not admitted. Hermes and Grokbot are not running.
-- W5: files, diff, sessions, and commit history are wired. A client can read task receipts and the task timeline. The terminal is refused. Two hundred comments reload without verifying the task.
-- W6: an old `{ tasks }` wrapper migrates, and putting the journal file back rolls a later comment out. Cutover stays closed.
+See `docs/cowork/RELEASE-GATE.md` for full evidence descriptions, including how session views, multi-client locking, control takeovers, and timeline queries behaved under local daemon test conditions.
 
 Not a release. Do not point this tree at a running production daemon or an existing BAT session.

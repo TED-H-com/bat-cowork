@@ -20,6 +20,14 @@ Inventories the inbound messages that Paseo accepts from a client session and ga
 
 Tracks the admission status of agent providers like Claude, Codex, and Grok against the locked baseline.
 
+### `host-namespaces.ts`
+
+Maps BAT's host namespaces to their disposition (e.g., native, workspace, split) ensuring correct host API splits.
+
+### `ui-parity.ts`
+
+Defines what is actually wired from the BAT shell based on evidence, maintaining a parity status check rather than making blanket claims.
+
 ## API Reference
 
 ### `createTask(params)`
@@ -33,7 +41,7 @@ const task = createTask({
   id: "task-1",
   driverId: "client-a",
   worktreeId: "wt-1",
-  evidence: null,
+  maxRework: 3,
 });
 ```
 
