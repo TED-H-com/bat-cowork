@@ -21,15 +21,15 @@ A derivative of Paseo at commit `cf2b3f4` (Paseo 0.11.0-beta.4). The fork starte
 
 From [docs/cowork/RELEASE-GATE.md](docs/cowork/RELEASE-GATE.md):
 
-| Package | Status         | Evidence                                                                                                            |
-| ------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
-| W0      | accepted       | `docs/cowork/W0-REPORT.md`: the Paseo snapshot, upstream lock, notices, and inventories                             |
-| W1      | not accepted   | Sessions and files are shown, and closing the client leaves the daemon up; Tauri does not compile                   |
-| W2      | not accepted   | Two local clients see one run; a repeated message id does not run twice; the commit lands in a daemon-made worktree |
-| W3      | local evidence | `task-w3.e2e.test.ts`: rework, restart, and a further instruction                                                   |
-| W4      | not accepted   | Two principals and two worktrees; a comment carries the client id; a viewer pause is rejected                       |
-| W5      | not accepted   | Commit history, task receipts, and the task timeline are readable; the terminal stays refused                       |
-| W6      | not accepted   | An old journal wrapper migrates and a snapshot restores                                                             |
+| Package | Status         | Evidence                                                                                                                                                                                                                                                                        |
+| ------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| W0      | accepted       | `docs/cowork/W0-REPORT.md`                                                                                                                                                                                                                                                      |
+| W1      | not accepted   | `w1-session.e2e.test.ts` shows sessions, files, and that closing the client leaves the daemon up. Tauri does not compile.                                                                                                                                                       |
+| W2      | not accepted   | `w2-same-run.e2e.test.ts` and `w2-stream.e2e.test.ts`. Two local clients see one run, the permission, and the reply. The same message id does not run twice. A daemon-created worktree receives the commit and the main checkout does not move. Official Codex is not admitted. |
+| W3      | local evidence | `task-w3.e2e.test.ts`                                                                                                                                                                                                                                                           |
+| W4      | not accepted   | `w4-control.e2e.test.ts` is two principals and two worktrees. `cowork-append.e2e.test.ts` stamps a comment with the client id and rejects a viewer pause. Hermes and Grokbot are not running.                                                                                   |
+| W5      | not accepted   | `ui-parity.ts`, `w5-history.test.ts`, and `cowork-tasks.e2e.test.ts`. Commit history, task receipts, and the task timeline are readable. Claude and Codex are not admitted. The terminal stays refused.                                                                         |
+| W6      | not accepted   | this file. `w6-journal.test.ts` migrates an old wrapper and restores a snapshot.                                                                                                                                                                                                |
 
 A package marked not accepted is not cleared for cutover, and cutover is closed. All of this ran on a local test daemon with an in-process fake Claude client. No agent provider (Claude, Codex, Grok) is admitted for dispatch.
 
