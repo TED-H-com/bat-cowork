@@ -69,6 +69,7 @@ export function createWorkspaceGitObserverService(deps: {
   const watchTargets = new Map<string, WorkspaceGitWatchTarget>();
   const workspaceStates = new Map<string, WorkspaceGitWatchState>();
   const subscriptions = new Map<string, () => void>();
+  const debounceTimers = new Map<string, NodeJS.Timeout>();
 
   function rememberDescriptorState(
     workspaceId: string,
@@ -93,6 +94,11 @@ export function createWorkspaceGitObserverService(deps: {
     watchTargets.delete(normalizedCwd);
     subscriptions.get(normalizedCwd)?.();
     subscriptions.delete(normalizedCwd);
+    const timer = debounceTimers.get(normalizedCwd);
+    if (timer) {
+      clearTimeout(timer);
+      debounceTimers.delete(normalizedCwd);
+    }
   }
 
   function removeForWorkspaceId(workspaceId: string): void {
@@ -159,13 +165,25 @@ export function createWorkspaceGitObserverService(deps: {
     try {
       subscription = workspaceGitService.registerWorkspace({ cwd: normalizedCwd }, (snapshot) => {
         handleBranchSnapshot(normalizedCwd, snapshot.git.currentBranch ?? null);
-        void emitWorkspaceUpdateForCwd(normalizedCwd).catch((error) => {
-          logger.warn(
-            { err: error, cwd: normalizedCwd },
-            "Failed to emit workspace update after git branch snapshot",
-          );
-        });
-        emitStatusUpdate(normalizedCwd, snapshot);
+
+        const existingTimer = debounceTimers.get(normalizedCwd);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+        }
+
+        debounceTimers.set(
+          normalizedCwd,
+          setTimeout(() => {
+            debounceTimers.delete(normalizedCwd);
+            void emitWorkspaceUpdateForCwd(normalizedCwd).catch((error) => {
+              logger.warn(
+                { err: error, cwd: normalizedCwd },
+                "Failed to emit workspace update after git branch snapshot",
+              );
+            });
+            emitStatusUpdate(normalizedCwd, snapshot);
+          }, 100),
+        );
       });
     } catch (error) {
       removeForWorkspaceId(options.workspaceId);
@@ -226,6 +244,10 @@ export function createWorkspaceGitObserverService(deps: {
         unsubscribe();
       }
       subscriptions.clear();
+      for (const timer of debounceTimers.values()) {
+        clearTimeout(timer);
+      }
+      debounceTimers.clear();
       watchTargets.clear();
       workspaceStates.clear();
     },

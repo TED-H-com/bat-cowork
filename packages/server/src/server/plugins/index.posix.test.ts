@@ -107,7 +107,13 @@ function catalogIds(service: PluginService): string[] {
 }
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+  await Promise.all(
+    roots.splice(0).map((root) =>
+      rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }).catch((err) => {
+        console.warn(`Failed to clean up root ${root}: ${err}`);
+      }),
+    ),
+  );
 });
 
 function createPausedRuntime() {

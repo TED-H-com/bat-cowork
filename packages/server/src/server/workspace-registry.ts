@@ -183,6 +183,8 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
   private loaded = false;
   private readonly cache = new Map<string, TRecord>();
   private mutationQueue: Promise<void> = Promise.resolve();
+  private readonly recordMutationQueues = new Map<string, Promise<void>>();
+  private writeQueue = Promise.resolve();
   private mutationsBlockedUntilRestart = false;
   private readonly writeRecords: (filePath: string, records: readonly TRecord[]) => Promise<void>;
 
@@ -229,14 +231,14 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
 
   async upsert(record: TRecord): Promise<void> {
     const parsed = this.schema.parse(record);
-    await this.mutateCache((records) => {
+    await this.mutateRecordCache(this.getId(parsed), (records) => {
       records.set(this.getId(parsed), parsed);
       return undefined;
     });
   }
 
   async update(id: string, updater: (record: TRecord) => TRecord): Promise<TRecord | null> {
-    return this.mutateCache((records) => {
+    return this.mutateRecordCache(id, (records) => {
       const existing = records.get(id);
       if (!existing) return null;
       const next = this.schema.parse(updater(existing));
@@ -250,7 +252,7 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
   }
 
   protected async archiveIfPresent(id: string, archivedAt: string): Promise<TRecord | null> {
-    return this.mutateCache((records) => {
+    return this.mutateRecordCache(id, (records) => {
       const existing = records.get(id);
       if (!existing) return null;
       const next = this.schema.parse({ ...existing, updatedAt: archivedAt, archivedAt });
@@ -260,7 +262,7 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
   }
 
   protected async archiveIfActive(id: string, archivedAt: string): Promise<TRecord | null> {
-    return this.mutateCache((records) => {
+    return this.mutateRecordCache(id, (records) => {
       const existing = records.get(id);
       if (!existing || existing.archivedAt) return null;
       const next = this.schema.parse({ ...existing, updatedAt: archivedAt, archivedAt });
@@ -274,7 +276,7 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
   }
 
   protected async removeIfPresent(id: string): Promise<TRecord | null> {
-    return this.mutateCache((records) => {
+    return this.mutateRecordCache(id, (records) => {
       const existing = records.get(id);
       if (!existing) return null;
       records.delete(id);
@@ -315,6 +317,38 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
     });
   }
 
+  protected async mutateRecordCache<TResult>(
+    id: string,
+    updater: (records: Map<string, TRecord>) => TResult,
+    hooks?: {
+      forcePersist?: (result: TResult) => boolean;
+      beforeWrite?: (records: readonly TRecord[]) => Promise<void>;
+      afterWrite?: () => Promise<void>;
+      afterCommit?: () => void;
+    },
+  ): Promise<TResult> {
+    const previousGlobal = this.mutationQueue;
+    const previousRecord = this.recordMutationQueues.get(id) ?? Promise.resolve();
+    let release!: () => void;
+    const nextRecord = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.recordMutationQueues.set(id, nextRecord);
+
+    // Await both the global queue (to wait out multi-record operations)
+    // and this record's previous queue to ensure single-record operations are serial
+    await Promise.all([previousGlobal, previousRecord]);
+
+    try {
+      return await this.performMutation(updater, hooks);
+    } finally {
+      release();
+      if (this.recordMutationQueues.get(id) === nextRecord) {
+        this.recordMutationQueues.delete(id);
+      }
+    }
+  }
+
   protected async mutateCache<TResult>(
     updater: (records: Map<string, TRecord>) => TResult,
     hooks?: {
@@ -324,47 +358,126 @@ class FileBackedRegistry<TRecord extends RegistryRecord> {
       afterCommit?: () => void;
     },
   ): Promise<TResult> {
-    const previous = this.mutationQueue;
+    const previousGlobal = this.mutationQueue;
+    // For a global mutateCache, we must wait for all pending record mutations to finish
+    // as well as any pending global mutations.
+    const activeRecordMutations = Array.from(this.recordMutationQueues.values());
     let release!: () => void;
     this.mutationQueue = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await previous;
+    await Promise.all([previousGlobal, ...activeRecordMutations]);
+
     try {
-      await this.load();
-      if (this.mutationsBlockedUntilRestart) {
-        throw new Error("Workspace registry mutations are blocked until daemon restart");
+      return await this.performMutation(updater, hooks);
+    } finally {
+      release();
+    }
+  }
+
+  // eslint-disable-next-line complexity
+  private async performMutation<TResult>(
+    updater: (records: Map<string, TRecord>) => TResult,
+    hooks?: {
+      forcePersist?: (result: TResult) => boolean;
+      beforeWrite?: (records: readonly TRecord[]) => Promise<void>;
+      afterWrite?: () => Promise<void>;
+      afterCommit?: () => void;
+    },
+  ): Promise<TResult> {
+    await this.load();
+    if (this.mutationsBlockedUntilRestart) {
+      throw new Error("Workspace registry mutations are blocked until daemon restart");
+    }
+
+    // Capture initial state to allow fine-grained cache updates and rollback
+    const originalRecords = new Map(this.cache);
+    const staged = new Map(this.cache);
+    const result = updater(staged);
+
+    const changedIds = new Set<string>();
+    let recordsChanged = false;
+    for (const [id, record] of staged) {
+      if (record !== originalRecords.get(id)) {
+        changedIds.add(id);
+        recordsChanged = true;
       }
-      const staged = new Map(this.cache);
-      const result = updater(staged);
-      const recordsChanged = !mapsEqual(this.cache, staged);
-      if (!recordsChanged && !hooks?.forcePersist?.(result)) return result;
-      const records = Array.from(staged.values());
-      await hooks?.beforeWrite?.(records);
-      if (recordsChanged) await this.writeRecords(this.filePath, records);
-      await hooks?.afterWrite?.();
-      if (recordsChanged) {
-        this.cache.clear();
-        for (const [id, record] of staged) this.cache.set(id, record);
+    }
+    for (const id of originalRecords.keys()) {
+      if (!staged.has(id)) {
+        changedIds.add(id);
+        recordsChanged = true;
       }
+    }
+
+    // Apply changes in memory synchronously (so concurrent calls don't overwrite each other)
+    if (recordsChanged) {
+      for (const id of changedIds) {
+        if (staged.has(id)) {
+          this.cache.set(id, staged.get(id)!);
+        } else {
+          this.cache.delete(id);
+        }
+      }
+    }
+
+    if (!recordsChanged && !hooks?.forcePersist?.(result)) return result;
+
+    let releaseWrite!: () => void;
+    const nextWrite = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    const previousWrite = this.writeQueue;
+    this.writeQueue = nextWrite;
+
+    try {
+      await previousWrite;
+
+      const currentRecords = Array.from(this.cache.values());
+      try {
+        await hooks?.beforeWrite?.(currentRecords);
+        if (recordsChanged) {
+          await this.writeRecords(this.filePath, currentRecords);
+        }
+        await hooks?.afterWrite?.();
+      } catch (error) {
+        // Revert cache state ONLY for records that failed and haven't been subsequently modified
+        // eslint-disable-next-line max-depth
+        if (recordsChanged) {
+          for (const id of changedIds) {
+            this.revertRecordCache(id, originalRecords, staged);
+          }
+        }
+        throw error;
+      }
+
       hooks?.afterCommit?.();
       return result;
     } finally {
-      release();
+      releaseWrite();
+    }
+  }
+
+  private revertRecordCache(
+    id: string,
+    originalRecords: Map<string, TRecord>,
+    staged: Map<string, TRecord>,
+  ): void {
+    const currentCacheRecord = this.cache.get(id);
+    const stagedRecord = staged.get(id);
+    if (currentCacheRecord === stagedRecord) {
+      const original = originalRecords.get(id);
+      if (original === undefined) {
+        this.cache.delete(id);
+      } else {
+        this.cache.set(id, original);
+      }
     }
   }
 
   protected freezeMutationsUntilRestart(): void {
     this.mutationsBlockedUntilRestart = true;
   }
-}
-
-function mapsEqual<TKey, TValue>(left: Map<TKey, TValue>, right: Map<TKey, TValue>): boolean {
-  if (left.size !== right.size) return false;
-  for (const [key, value] of left) {
-    if (right.get(key) !== value) return false;
-  }
-  return true;
 }
 
 export class FileBackedProjectRegistry
