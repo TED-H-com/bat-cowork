@@ -14,27 +14,26 @@ describe("cowork mutations e2e", () => {
       home: tempDir,
     });
     try {
+      const client = context.client;
 
-    const client = context.client;
+      const agent = await client.createAgent({
+        provider: "codex",
+        cwd: tempDir,
+      });
 
-    const agent = await client.createAgent({
-      provider: "codex",
-      cwd: tempDir,
-    });
+      expect(agent.id).toBeTruthy();
 
-    expect(agent.id).toBeTruthy();
+      const request: CoworkTasksListRequest = {
+        type: "cowork.tasks.list.request",
+        worktreeId: agent.id,
+      };
 
-    const request: CoworkTasksListRequest = {
-      type: "cowork.tasks.list.request",
-      worktreeId: agent.id,
-    };
+      const res = await client.sendCorrelatedSessionRequest<CoworkTasksListResponse>({
+        message: request,
+        responseType: "cowork.tasks.list.response",
+      });
 
-    const res = await client.sendCorrelatedSessionRequest<CoworkTasksListResponse>({
-      message: request,
-      responseType: "cowork.tasks.list.response",
-    });
-
-    expect(res).toBeTruthy();
+      expect(res).toBeTruthy();
     } finally {
       await context.cleanup();
     }

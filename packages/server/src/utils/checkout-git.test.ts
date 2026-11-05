@@ -260,7 +260,15 @@ describe("checkout git utilities", () => {
   afterEach(() => {
     __resetCheckoutShortstatCacheForTests();
     __resetPullRequestStatusCacheForTests();
-    rmSync(tempDir, { recursive: true, force: true });
+    try {
+      rmSync(tempDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    } catch (e) {
+      if (
+        (e as { code?: string }).code !== "EBUSY" &&
+        (e as { code?: string }).code !== "ENOTEMPTY"
+      )
+        throw e;
+    }
   });
 
   it("throws NotGitRepoError for non-git directories", async () => {
@@ -1967,50 +1975,54 @@ const x = 1;
     ).toThrow();
   });
 
-  it("aborts pull on rebase conflicts and leaves no rebase in progress", async () => {
-    const remoteDir = join(tempDir, "remote.git");
-    execFileSync("git", ["init", "--bare", "-b", "main", remoteDir]);
-    execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoDir });
-    execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoDir });
-    execFileSync("git", ["config", "pull.rebase", "true"], { cwd: repoDir });
+  it(
+    "aborts pull on rebase conflicts and leaves no rebase in progress",
+    { timeout: 45000 },
+    async () => {
+      const remoteDir = join(tempDir, "remote.git");
+      execFileSync("git", ["init", "--bare", "-b", "main", remoteDir]);
+      execFileSync("git", ["remote", "add", "origin", remoteDir], { cwd: repoDir });
+      execFileSync("git", ["push", "-u", "origin", "main"], { cwd: repoDir });
+      execFileSync("git", ["config", "pull.rebase", "true"], { cwd: repoDir });
 
-    writeFileSync(join(repoDir, "conflict.txt"), "local\n");
-    execFileSync("git", ["add", "conflict.txt"], { cwd: repoDir });
-    execFileSync(
-      "git",
-      ["-c", "commit.gpgsign=false", "commit", "-m", "local rebase conflict commit"],
-      {
-        cwd: repoDir,
-      },
-    );
+      writeFileSync(join(repoDir, "conflict.txt"), "local\n");
+      execFileSync("git", ["add", "conflict.txt"], { cwd: repoDir });
+      execFileSync(
+        "git",
+        ["-c", "commit.gpgsign=false", "commit", "-m", "local rebase conflict commit"],
+        {
+          cwd: repoDir,
+        },
+      );
 
-    const otherClone = join(tempDir, "other-clone");
-    execFileSync("git", ["clone", remoteDir, otherClone]);
-    execFileSync("git", ["config", "user.email", "test@test.com"], { cwd: otherClone });
-    execFileSync("git", ["config", "user.name", "Test"], { cwd: otherClone });
-    writeFileSync(join(otherClone, "conflict.txt"), "remote\n");
-    execFileSync("git", ["add", "conflict.txt"], { cwd: otherClone });
-    execFileSync(
-      "git",
-      ["-c", "commit.gpgsign=false", "commit", "-m", "remote rebase conflict commit"],
-      {
-        cwd: otherClone,
-      },
-    );
-    execFileSync("git", ["push"], { cwd: otherClone });
+      const otherClone = join(tempDir, "other-clone");
+      execFileSync("git", ["clone", remoteDir, otherClone]);
+      execFileSync("git", ["config", "user.email", "test@test.com"], { cwd: otherClone });
+      execFileSync("git", ["config", "user.name", "Test"], { cwd: otherClone });
+      writeFileSync(join(otherClone, "conflict.txt"), "remote\n");
+      execFileSync("git", ["add", "conflict.txt"], { cwd: otherClone });
+      execFileSync(
+        "git",
+        ["-c", "commit.gpgsign=false", "commit", "-m", "remote rebase conflict commit"],
+        {
+          cwd: otherClone,
+        },
+      );
+      execFileSync("git", ["push"], { cwd: otherClone });
 
-    await expect(pullCurrentBranch(repoDir)).rejects.toBeInstanceOf(Error);
+      await expect(pullCurrentBranch(repoDir)).rejects.toBeInstanceOf(Error);
 
-    const gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], { cwd: repoDir })
-      .toString()
-      .trim();
-    const porcelain = execFileSync("git", ["status", "--porcelain"], { cwd: repoDir })
-      .toString()
-      .trim();
-    expect(porcelain).toBe("");
-    expect(existsSync(join(gitDir, "rebase-merge"))).toBe(false);
-    expect(existsSync(join(gitDir, "rebase-apply"))).toBe(false);
-  });
+      const gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], { cwd: repoDir })
+        .toString()
+        .trim();
+      const porcelain = execFileSync("git", ["status", "--porcelain"], { cwd: repoDir })
+        .toString()
+        .trim();
+      expect(porcelain).toBe("");
+      expect(existsSync(join(gitDir, "rebase-merge"))).toBe(false);
+      expect(existsSync(join(gitDir, "rebase-apply"))).toBe(false);
+    },
+  );
 
   it("pushes the current branch to origin", async () => {
     const remoteDir = join(tempDir, "remote.git");

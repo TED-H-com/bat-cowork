@@ -147,22 +147,23 @@ test("task-core uncovered paths", () => {
     text: "fix",
   }).state;
 
-  const disState = { ...state, holdDispatch: false, activeCommand: { id: "i1", outcome: "inflight" as const } };
+  const disState = {
+    ...state,
+    holdDispatch: false,
+    activeCommand: { id: "i1", outcome: "inflight" as const },
+  };
 
-  assert.deepEqual(
-    dispatchAllowed(disState as TaskState, "hermes-a", "i1"),
-    { allow: false, reason: "duplicate" }
-  );
+  assert.deepEqual(dispatchAllowed(disState as TaskState, "hermes-a", "i1"), {
+    allow: false,
+    reason: "duplicate",
+  });
 
-  assert.deepEqual(
-    dispatchAllowed(disState as TaskState, "ted", "i1"),
-    { allow: false, reason: "writer" }
-  );
+  assert.deepEqual(dispatchAllowed(disState as TaskState, "ted", "i1"), {
+    allow: false,
+    reason: "writer",
+  });
 
-  assert.deepEqual(
-    dispatchAllowed(disState as TaskState, "hermes-a", "new-id"),
-    { allow: true }
-  );
+  assert.deepEqual(dispatchAllowed(disState as TaskState, "hermes-a", "new-id"), { allow: true });
 
   // test event default fallback
   // using an unknown event type
