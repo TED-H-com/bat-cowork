@@ -21,7 +21,7 @@ test("dispatch-policy uncovered paths", () => {
       commandId: "c",
       alreadyDispatched: false,
     }),
-    { allow: true }
+    { allow: true },
   );
 
   // Line 23: epoch !== expectedEpoch
@@ -38,7 +38,7 @@ test("dispatch-policy uncovered paths", () => {
       commandId: "c",
       alreadyDispatched: false,
     }),
-    { allow: false, reason: "epoch" }
+    { allow: false, reason: "epoch" },
   );
 
   // Line 25: !actorIsWriter
@@ -55,7 +55,7 @@ test("dispatch-policy uncovered paths", () => {
       commandId: "c",
       alreadyDispatched: false,
     }),
-    { allow: false, reason: "writer" }
+    { allow: false, reason: "writer" },
   );
 
   // Line 25: resourceWriter !== actor
@@ -72,7 +72,7 @@ test("dispatch-policy uncovered paths", () => {
       commandId: "c",
       alreadyDispatched: false,
     }),
-    { allow: false, reason: "writer" }
+    { allow: false, reason: "writer" },
   );
 
   // Line 28: alreadyDispatched
@@ -89,7 +89,24 @@ test("dispatch-policy uncovered paths", () => {
       commandId: "c",
       alreadyDispatched: true,
     }),
-    { allow: false, reason: "duplicate" }
+    { allow: false, reason: "duplicate" },
+  );
+
+  // Line 28: allow: true
+  assert.deepEqual(
+    evaluateDispatch({
+      actor: "hermes-a",
+      effect: "write",
+      revision: 1,
+      expectedRevision: 1,
+      epoch: 1,
+      expectedEpoch: 1,
+      resourceWriter: "hermes-a",
+      actorIsWriter: true,
+      commandId: "c",
+      alreadyDispatched: false,
+    }),
+    { allow: true },
   );
 });
 
@@ -110,7 +127,7 @@ test("host-namespaces uncovered paths", () => {
 });
 
 test("task-core uncovered paths", () => {
-  const base = (): TaskState => createTask({ id: "t1", worktreeId: "w1", writerId: "hermes-a" });
+  const base = (): TaskState => createTask({ id: "t1", worktreeId: "w1", driverId: "hermes-a" });
 
   // line 135 fallback (liveness check with unexpected kind)
   const fakeLiveness = { kind: "unknown" } as unknown;
@@ -130,7 +147,7 @@ test("task-core uncovered paths", () => {
     text: "fix",
   }).state;
 
-  const disState = { ...state, activeCommand: { id: "i1", outcome: "inflight" as const } };
+  const disState = { ...state, holdDispatch: false, activeCommand: { id: "i1", outcome: "inflight" as const } };
 
   assert.deepEqual(
     dispatchAllowed(disState as TaskState, "hermes-a", "i1"),
