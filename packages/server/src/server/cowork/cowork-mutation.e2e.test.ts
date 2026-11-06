@@ -1,0 +1,41 @@
+import { describe, expect, test } from "vitest";
+import { createDaemonTestContext } from "../test-utils/daemon-test-context.js";
+import { mkdtemp } from "node:fs/promises";
+import * as path from "node:path";
+import * as os from "node:os";
+import type { CoworkTasksListRequest, CoworkTasksListResponse } from "@getpaseo/protocol/messages";
+
+describe("cowork mutations e2e", () => {
+  let context: Awaited<ReturnType<typeof createDaemonTestContext>>;
+
+  test("can spawn an agent and send a cowork task list request", async () => {
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "cowork-e2e-"));
+    context = await createDaemonTestContext({
+      home: tempDir,
+    });
+    try {
+      const client = context.client;
+
+      const agent = await client.createAgent({
+        provider: "codex",
+        cwd: tempDir,
+      });
+
+      expect(agent.id).toBeTruthy();
+
+      const request: CoworkTasksListRequest = {
+        type: "cowork.tasks.list.request",
+        worktreeId: agent.id,
+      };
+
+      const res = await client.sendCorrelatedSessionRequest<CoworkTasksListResponse>({
+        message: request,
+        responseType: "cowork.tasks.list.response",
+      });
+
+      expect(res).toBeTruthy();
+    } finally {
+      await context.cleanup();
+    }
+  });
+});
