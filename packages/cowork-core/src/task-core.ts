@@ -116,9 +116,11 @@ function note(
   actor: string,
   text: string,
 ): TaskState {
+  const timeline = state.timeline.slice();
+  timeline.push({ eventId, kind, actor, text });
   return {
     ...state,
-    timeline: [...state.timeline, { eventId, kind, actor, text }],
+    timeline,
   };
 }
 
@@ -149,9 +151,11 @@ export function step(state: TaskState, event: TaskEvent): StepResult {
   if (state.appliedEventIds.includes(event.id)) {
     return { state, intents: [] };
   }
+  const appliedEventIds = state.appliedEventIds.slice();
+  appliedEventIds.push(event.id);
   const seen: TaskState = {
     ...state,
-    appliedEventIds: [...state.appliedEventIds, event.id],
+    appliedEventIds,
   };
   const result = reduce(seen, event);
   return { state: ensureLiveness(result.state), intents: result.intents };
@@ -437,6 +441,8 @@ function passVerify(
     };
   }
   const outboxId = `out:${event.id}`;
+  const outbox = state.outbox.slice();
+  outbox.push({ id: outboxId, kind: "verified", failed: false });
   return {
     state: note(
       {
@@ -444,7 +450,7 @@ function passVerify(
         phase: "verified",
         evidence: event.evidence,
         activeCommand: null,
-        outbox: [...state.outbox, { id: outboxId, kind: "verified", failed: false }],
+        outbox,
       },
       event.id,
       "verify.passed",
